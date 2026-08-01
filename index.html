@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snake Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: #fff;
+    }
+    .wrapper {
+      text-align: center;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 10px;
+      font-size: 2.2rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .score-panel {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-bottom: 15px;
+      font-size: 1.1rem;
+    }
+    .score-panel span {
+      color: #ffd700;
+      font-weight: bold;
+    }
+    canvas {
+      background: #1a1a2e;
+      border: 3px solid #ffd700;
+      border-radius: 8px;
+      display: block;
+      margin: 0 auto;
+      box-shadow: 0 0 30px rgba(255, 215, 0, 0.2);
+      touch-action: none;
+    }
+    #message {
+      margin-top: 15px;
+      font-size: 1.3rem;
+      min-height: 1.5em;
+      color: #ff6b6b;
+      font-weight: bold;
+    }
+    button {
+      margin-top: 10px;
+      padding: 12px 30px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 30px;
+      background: #ffd700;
+      color: #1a1a2e;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.15s;
+    }
+    button:hover {
+      background: #ffe14d;
+      transform: scale(1.05);
+    }
+    .controls {
+      margin-top: 10px;
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+    @media (max-width: 600px) {
+      canvas {
+        width: 90vw;
+        height: 90vw;
+      }
+      h1 { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <h1>Snake Game</h1>
+    <div class="score-panel">
+      <div>Skor: <span id="score">0</span></div>
+      <div>Rekor: <span id="highScore">0</span></div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="message">Tekan Spasi untuk mulai</div>
+    <button id="restartBtn">Mulai Ulang</button>
+    <div class="controls">Gunakan panah / WASD untuk bergerak. Di HP: gesek layar.</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const highScoreEl = document.getElementById('highScore');
+    const messageEl = document.getElementById('message');
+    const restartBtn = document.getElementById('restartBtn');
+
+    const GRID = 20;
+    const CELLS = 20;
+    const canvasSize = GRID * CELLS;
+
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
+
+    let snake = [];
+    let direction = { x: 1, y: 0 };
+    let nextDirection = { x: 1, y: 0 };
+    let food = {};
+    let score = 0;
+    let highScore = parseInt(localStorage.getItem('snakeHighScore') || '0');
+    let gameRunning = false;
+    let gameOver = false;
+    let gameLoop = null;
+    const GAME_SPEED = 120;
+
+    highScoreEl.textContent = highScore;
+
+    function init() {
+      snake = [
+        { x: 7, y: 10 },
+        { x: 6, y: 10 },
+        { x: 5, y: 10 }
+      ];
+      direction = { x: 1, y: 0 };
+      nextDirection = { x: 1, y: 0 };
+      score = 0;
+      gameOver = false;
+      scoreEl.textContent = score;
+      messageEl.textContent = '';
+      spawnFood();
+    }
+
+    function spawnFood() {
+      let pos;
+      do {
+        pos = {
+          x: Math.floor(Math.random() * CELLS),
+          y: Math.floor(Math.random() * CELLS)
+        };
+      } while (snake.some(s => s.x === pos.x && s.y === pos.y));
+      food = pos;
+    }
+
+    function update() {
+      direction = { ...nextDirection };
+
+      const head = {
+        x: snake[0].x + direction.x,
+        y: snake[0].y + direction.y
+      };
+
+      if (head.x < 0 || head.x >= CELLS || head.y < 0 || head.y >= CELLS) {
+        endGame();
+        return;
+      }
+
+      for (let i = 0; i < snake.length; i++) {
+        if (snake[i].x === head.x && snake[i].y === head.y) {
+          endGame();
+          return;
+        }
+      }
+
+      snake.unshift(head);
+
+      if (head.x === food.x && head.y === food.y) {
+        score++;
+        scoreEl.textContent = score;
+        if (score > highScore) {
+          highScore = score;
+          highScoreEl.textContent = highScore;
+          localStorage.setItem('snakeHighScore', highScore);
+        }
+        spawnFood();
+      } else {
+        snake.pop();
+      }
+    }
+
+    function endGame() {
+      gameRunning = false;
+      gameOver = true;
+      clearInterval(gameLoop);
+      gameLoop = null;
+      messageEl.textContent = 'Game Over! Tekan Spasi untuk bermain lagi';
+      draw();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvasSize, canvasSize);
+
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      for (let i = 1; i < CELLS; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * GRID, 0);
+        ctx.lineTo(i * GRID, canvasSize);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, i * GRID);
+        ctx.lineTo(canvasSize, i * GRID);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = '#ff6b6b';
+      ctx.beginPath();
+      ctx.arc(food.x * GRID + GRID / 2, food.y * GRID + GRID / 2, GRID / 2 - 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      snake.forEach((seg, i) => {
+        const gradient = i === 0 ? '#00ff88' : i % 2 === 0 ? '#00cc6a' : '#00aa55';
+        ctx.fillStyle = gradient;
+        ctx.fillRect(seg.x * GRID + 1, seg.y * GRID + 1, GRID - 2, GRID - 2);
+        if (i === 0) {
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.arc(seg.x * GRID + GRID / 2 - 4, seg.y * GRID + GRID / 2 - 3, 2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(seg.x * GRID + GRID / 2 + 4, seg.y * GRID + GRID / 2 - 3, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+    }
+
+    function startGame() {
+      if (gameOver) init();
+      if (gameRunning) return;
+      gameRunning = true;
+      if (gameLoop) clearInterval(gameLoop);
+      gameLoop = setInterval(() => {
+        update();
+        draw();
+      }, GAME_SPEED);
+    }
+
+    function togglePause() {
+      if (!gameRunning) return;
+      clearInterval(gameLoop);
+      gameLoop = null;
+      gameRunning = false;
+      messageEl.textContent = 'Dijeda. Tekan Spasi untuk lanjut';
+    }
+
+    function handleKey(e) {
+      const key = e.key.toLowerCase();
+
+      if (key === ' ') {
+        e.preventDefault();
+        if (gameOver) {
+          startGame();
+        } else if (gameRunning) {
+          togglePause();
+        } else {
+          startGame();
+        }
+        return;
+      }
+
+      if (!gameRunning) return;
+
+      const dirs = {
+        arrowup: { x: 0, y: -1 },
+        arrowdown: { x: 0, y: 1 },
+        arrowleft: { x: -1, y: 0 },
+        arrowright: { x: 1, y: 0 },
+        w: { x: 0, y: -1 },
+        s: { x: 0, y: 1 },
+        a: { x: -1, y: 0 },
+        d: { x: 1, y: 0 }
+      };
+
+      const nd = dirs[key];
+      if (!nd) return;
+      if (nd.x === -direction.x && nd.y === -direction.y) return;
+      nextDirection = nd;
+    }
+
+    let touchStart = null;
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const t = e.touches[0];
+      touchStart = { x: t.clientX, y: t.clientY };
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      if (!touchStart) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - touchStart.x;
+      const dy = t.clientY - touchStart.y;
+      if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        nextDirection = { x: dx > 0 ? 1 : -1, y: 0 };
+      } else {
+        nextDirection = { x: 0, y: dy > 0 ? 1 : -1 };
+      }
+      if (!gameRunning && !gameOver) startGame();
+    }, { passive: false });
+
+    document.addEventListener('keydown', handleKey);
+    restartBtn.addEventListener('click', () => {
+      init();
+      startGame();
+    });
+
+    init();
+    draw();
+  </script>
+</body>
+</html>

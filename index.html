@@ -128,6 +128,71 @@
       }
       h1 { font-size: 1.6rem; }
     }
+    .joystick {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .joystick.hidden {
+      display: none;
+    }
+    .joy-base {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 2px solid rgba(255, 215, 0, 0.35);
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(255, 215, 0, 0.1);
+    }
+    .joy-base::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 2px;
+      height: 70%;
+      background: rgba(255, 255, 255, 0.08);
+      transform: translate(-50%, -50%);
+    }
+    .joy-base::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 70%;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.08);
+      transform: translate(-50%, -50%);
+    }
+    .joy-knob {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 56px;
+      height: 56px;
+      background: radial-gradient(circle at 35% 35%, #ffe14d, #ffd700);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 12px rgba(255, 215, 0, 0.4);
+      pointer-events: none;
+    }
+    @media (max-width: 600px) {
+      .joystick {
+        margin-top: 16px;
+      }
+      .joy-base {
+        width: 120px;
+        height: 120px;
+      }
+      .joy-knob {
+        width: 48px;
+        height: 48px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -144,7 +209,12 @@
     <canvas id="gameCanvas"></canvas>
     <div id="message">Tekan Spasi untuk mulai</div>
     <button id="restartBtn">Mulai Ulang</button>
-    <div class="controls">Gunakan panah / WASD untuk bergerak. Di HP: gesek layar.</div>
+    <div class="controls">Gunakan panah / WASD atau joystick untuk bergerak.</div>
+    <div id="joystick" class="joystick hidden">
+      <div class="joy-base">
+        <div class="joy-knob" id="joyKnob"></div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -415,6 +485,63 @@
       init();
       startGame();
     });
+
+    const joystick = document.getElementById('joystick');
+    const joyBase = joystick.querySelector('.joy-base');
+    const joyKnob = document.getElementById('joyKnob');
+    joystick.classList.remove('hidden');
+
+    let joyActive = false;
+    const joyCenter = { x: 0, y: 0 };
+    const JOY_RADIUS = joyBase.offsetWidth / 2;
+
+    function joyToDirection(dx, dy) {
+      if (Math.abs(dx) > Math.abs(dy)) {
+        return { x: dx > 0 ? 1 : -1, y: 0 };
+      }
+      return { x: 0, y: dy > 0 ? 1 : -1 };
+    }
+
+    function updateJoy(clientX, clientY) {
+      const dx = clientX - joyCenter.x;
+      const dy = clientY - joyCenter.y;
+      const dist = Math.hypot(dx, dy);
+      const clamp = Math.min(1, dist / JOY_RADIUS);
+      const kx = (dx / (dist || 1)) * JOY_RADIUS * clamp;
+      const ky = (dy / (dist || 1)) * JOY_RADIUS * clamp;
+      joyKnob.style.transform = `translate(calc(-50% + ${kx}px), calc(-50% + ${ky}px))`;
+
+      if (dist > 10) {
+        const nd = joyToDirection(dx, dy);
+        if (nd.x !== -direction.x || nd.y !== -direction.y) {
+          nextDirection = nd;
+        }
+        if (!gameRunning && !gameOver) startGame();
+      }
+    }
+
+    function joyReset() {
+      joyActive = false;
+      joyKnob.style.transform = 'translate(-50%, -50%)';
+    }
+
+    joystick.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      joystick.setPointerCapture(e.pointerId);
+      joyActive = true;
+      const rect = joyBase.getBoundingClientRect();
+      joyCenter.x = rect.left + rect.width / 2;
+      joyCenter.y = rect.top + rect.height / 2;
+      updateJoy(e.clientX, e.clientY);
+    });
+
+    joystick.addEventListener('pointermove', (e) => {
+      if (!joyActive) return;
+      updateJoy(e.clientX, e.clientY);
+    });
+
+    joystick.addEventListener('pointerup', joyReset);
+    joystick.addEventListener('pointercancel', joyReset);
 
     init();
     buildCharButtons();

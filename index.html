@@ -193,6 +193,50 @@
         height: 48px;
       }
     }
+    .level-panel {
+      margin-bottom: 15px;
+    }
+    .level-panel h2 {
+      font-size: 1rem;
+      color: #aaa;
+      margin-bottom: 8px;
+      font-weight: normal;
+      letter-spacing: 1px;
+    }
+    .level-list {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .level-option {
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.15s, background 0.15s;
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .level-option:hover {
+      transform: scale(1.05);
+    }
+    .level-option.selected {
+      border-color: #ffd700;
+      background: rgba(255, 215, 0, 0.15);
+      box-shadow: 0 0 12px rgba(255, 215, 0, 0.25);
+    }
+    .level-option.easy { border-color: rgba(76, 175, 80, 0.6); }
+    .level-option.medium { border-color: rgba(255, 152, 0, 0.6); }
+    .level-option.hard { border-color: rgba(244, 67, 54, 0.6); }
+    .level-option.easy.selected { border-color: #4caf50; background: rgba(76, 175, 80, 0.2); }
+    .level-option.medium.selected { border-color: #ff9800; background: rgba(255, 152, 0, 0.2); }
+    .level-option.hard.selected { border-color: #f44336; background: rgba(244, 67, 54, 0.2); }
   </style>
 </head>
 <body>
@@ -205,6 +249,10 @@
     <div class="char-panel">
       <h2>Pilih Ular:</h2>
       <div class="char-list" id="charList"></div>
+    </div>
+    <div class="level-panel">
+      <h2>Pilih Level:</h2>
+      <div class="level-list" id="levelList"></div>
     </div>
     <canvas id="gameCanvas"></canvas>
     <div id="message">Tekan Spasi untuk mulai</div>
@@ -225,6 +273,33 @@
     const messageEl = document.getElementById('message');
     const restartBtn = document.getElementById('restartBtn');
     const charListEl = document.getElementById('charList');
+    const levelListEl = document.getElementById('levelList');
+
+    const LEVELS = {
+      easy: {
+        name: 'Easy',
+        food: '🍌',
+        foodName: 'Pisang',
+        speed: 160,
+        score: 1
+      },
+      medium: {
+        name: 'Medium',
+        food: '🍎',
+        foodName: 'Apel',
+        speed: 120,
+        score: 2
+      },
+      hard: {
+        name: 'Hard',
+        food: '🍍',
+        foodName: 'Nanas',
+        speed: 80,
+        score: 3
+      }
+    };
+    let currentLevel = localStorage.getItem('snakeLevel') || 'easy';
+    if (!LEVELS[currentLevel]) currentLevel = 'easy';
 
     const CHARACTERS = {
       emerald: {
@@ -265,7 +340,6 @@
     let gameRunning = false;
     let gameOver = false;
     let gameLoop = null;
-    const GAME_SPEED = 120;
 
     highScoreEl.textContent = highScore;
 
@@ -293,6 +367,7 @@
         };
       } while (snake.some(s => s.x === pos.x && s.y === pos.y));
       food = pos;
+      food.emoji = LEVELS[currentLevel].food;
     }
 
     function update() {
@@ -318,7 +393,7 @@
       snake.unshift(head);
 
       if (head.x === food.x && head.y === food.y) {
-        score++;
+        score += LEVELS[currentLevel].score;
         scoreEl.textContent = score;
         if (score > highScore) {
           highScore = score;
@@ -364,6 +439,26 @@
       });
     }
 
+    function buildLevelButtons() {
+      levelListEl.innerHTML = '';
+      Object.entries(LEVELS).forEach(([id, l]) => {
+        const btn = document.createElement('button');
+        btn.className = 'level-option ' + id + (id === currentLevel ? ' selected' : '');
+        btn.dataset.id = id;
+        btn.type = 'button';
+        btn.textContent = `${l.food} ${l.name} · ${l.score} poin`;
+        btn.addEventListener('click', () => {
+          currentLevel = id;
+          localStorage.setItem('snakeLevel', id);
+          document.querySelectorAll('.level-option').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          init();
+          draw();
+        });
+        levelListEl.appendChild(btn);
+      });
+    }
+
     function draw() {
       ctx.clearRect(0, 0, canvasSize, canvasSize);
 
@@ -382,10 +477,12 @@
         ctx.stroke();
       }
 
-      ctx.fillStyle = '#ff6b6b';
-      ctx.beginPath();
-      ctx.arc(food.x * GRID + GRID / 2, food.y * GRID + GRID / 2, GRID / 2 - 2, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.font = '18px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(food.emoji || '🍎',
+        food.x * GRID + GRID / 2,
+        food.y * GRID + GRID / 2 + 1);
 
       const c = CHARACTERS[currentChar];
       snake.forEach((seg, i) => {
@@ -412,7 +509,7 @@
       gameLoop = setInterval(() => {
         update();
         draw();
-      }, GAME_SPEED);
+      }, LEVELS[currentLevel].speed);
     }
 
     function togglePause() {
@@ -545,6 +642,7 @@
 
     init();
     buildCharButtons();
+    buildLevelButtons();
     draw();
   </script>
 </body>

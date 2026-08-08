@@ -77,6 +77,50 @@
       font-size: 0.9rem;
       color: #aaa;
     }
+    .char-panel {
+      margin-bottom: 15px;
+    }
+    .char-panel h2 {
+      font-size: 1rem;
+      color: #aaa;
+      margin-bottom: 8px;
+      font-weight: normal;
+      letter-spacing: 1px;
+    }
+    .char-list {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .char-option {
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.15s, background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+    .char-option:hover {
+      transform: scale(1.05);
+    }
+    .char-option.selected {
+      border-color: #ffd700;
+      background: rgba(255, 215, 0, 0.12);
+      box-shadow: 0 0 12px rgba(255, 215, 0, 0.25);
+    }
+    .char-swatch {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+    }
     @media (max-width: 600px) {
       canvas {
         width: 90vw;
@@ -93,6 +137,10 @@
       <div>Skor: <span id="score">0</span></div>
       <div>Rekor: <span id="highScore">0</span></div>
     </div>
+    <div class="char-panel">
+      <h2>Pilih Ular:</h2>
+      <div class="char-list" id="charList"></div>
+    </div>
     <canvas id="gameCanvas"></canvas>
     <div id="message">Tekan Spasi untuk mulai</div>
     <button id="restartBtn">Mulai Ulang</button>
@@ -106,6 +154,30 @@
     const highScoreEl = document.getElementById('highScore');
     const messageEl = document.getElementById('message');
     const restartBtn = document.getElementById('restartBtn');
+    const charListEl = document.getElementById('charList');
+
+    const CHARACTERS = {
+      emerald: {
+        name: 'Emerald',
+        head: '#00ff88',
+        body1: '#00cc6a',
+        body2: '#00aa55',
+        eye: '#ffffff',
+        accent: '#ffd700' ,
+        type: 'classic'
+      },
+      flame: {
+        name: 'Flame',
+        head: '#ff7043',
+        body1: '#ff5722',
+        body2: '#d84315',
+        eye: '#ffe082',
+        accent: '#ffab40',
+        type: 'flame'
+      }
+    };
+    let currentChar = localStorage.getItem('snakeChar') || 'emerald';
+    if (!CHARACTERS[currentChar]) currentChar = 'emerald';
 
     const GRID = 20;
     const CELLS = 20;
@@ -198,6 +270,30 @@
       draw();
     }
 
+    function buildCharButtons() {
+      charListEl.innerHTML = '';
+      Object.entries(CHARACTERS).forEach(([id, c]) => {
+        const btn = document.createElement('button');
+        btn.className = 'char-option' + (id === currentChar ? ' selected' : '');
+        btn.dataset.id = id;
+        btn.type = 'button';
+        const swatch = document.createElement('span');
+        swatch.className = 'char-swatch';
+        swatch.style.background = `linear-gradient(90deg, ${c.head}, ${c.body1})`;
+        btn.appendChild(swatch);
+        btn.appendChild(document.createTextNode(c.name));
+        btn.addEventListener('click', () => {
+          currentChar = id;
+          localStorage.setItem('snakeChar', id);
+          document.querySelectorAll('.char-option').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          init();
+          draw();
+        });
+        charListEl.appendChild(btn);
+      });
+    }
+
     function draw() {
       ctx.clearRect(0, 0, canvasSize, canvasSize);
 
@@ -221,12 +317,13 @@
       ctx.arc(food.x * GRID + GRID / 2, food.y * GRID + GRID / 2, GRID / 2 - 2, 0, Math.PI * 2);
       ctx.fill();
 
+      const c = CHARACTERS[currentChar];
       snake.forEach((seg, i) => {
-        const gradient = i === 0 ? '#00ff88' : i % 2 === 0 ? '#00cc6a' : '#00aa55';
-        ctx.fillStyle = gradient;
+        const bodyColor = i % 2 === 0 ? c.body1 : c.body2;
+        ctx.fillStyle = i === 0 ? c.head : bodyColor;
         ctx.fillRect(seg.x * GRID + 1, seg.y * GRID + 1, GRID - 2, GRID - 2);
         if (i === 0) {
-          ctx.fillStyle = '#fff';
+          ctx.fillStyle = c.eye;
           ctx.beginPath();
           ctx.arc(seg.x * GRID + GRID / 2 - 4, seg.y * GRID + GRID / 2 - 3, 2, 0, Math.PI * 2);
           ctx.fill();
@@ -320,6 +417,7 @@
     });
 
     init();
+    buildCharButtons();
     draw();
   </script>
 </body>
